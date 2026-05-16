@@ -34,7 +34,7 @@ jobs:
         run: |
           xcodebuild build \
             -scheme PermissionKit \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation
 
   build-tvos:
@@ -48,7 +48,7 @@ jobs:
         run: |
           xcodebuild build \
             -scheme PermissionKit \
-            -destination 'platform=tvOS Simulator,name=Apple TV,OS=latest' \
+            -destination 'generic/platform=tvOS Simulator' \
             -skipPackagePluginValidation
 
   build-watchos:
@@ -62,5 +62,5 @@ jobs:
         run: |
           xcodebuild build \
             -scheme PermissionKit \
-            -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=latest' \
+            -destination 'generic/platform=watchOS Simulator' \
             -skipPackagePluginValidation
