@@ -56,12 +56,13 @@ public struct PermissionManifest: Sendable {
         var seenKeys = Set<String>()
 
         for entry in entries {
-            guard let key = entry.permission.infoPlistKey else { continue }
-            guard !seenKeys.contains(key) else { continue }
-            seenKeys.insert(key)
+            for key in entry.permission.infoPlistKeys {
+                guard !seenKeys.contains(key) else { continue }
+                seenKeys.insert(key)
 
-            lines.append("\t<key>\(escapeXML(key))</key>")
-            lines.append("\t<string>\(escapeXML(entry.usageDescription))</string>")
+                lines.append("\t<key>\(escapeXML(key))</key>")
+                lines.append("\t<string>\(escapeXML(entry.usageDescription))</string>")
+            }
         }
 
         return lines.joined(separator: "\n")
@@ -161,10 +162,14 @@ public struct PermissionManifest: Sendable {
     /// Returns an array of missing key names.
     public func validateBundle(_ bundle: Bundle = .main) -> [String] {
         var missing: [String] = []
+        var seen = Set<String>()
         for entry in entries {
-            guard let key = entry.permission.infoPlistKey else { continue }
-            if bundle.object(forInfoDictionaryKey: key) == nil {
-                missing.append(key)
+            for key in entry.permission.infoPlistKeys {
+                guard !seen.contains(key) else { continue }
+                seen.insert(key)
+                if bundle.object(forInfoDictionaryKey: key) == nil {
+                    missing.append(key)
+                }
             }
         }
         return missing
@@ -179,8 +184,9 @@ public struct PermissionManifest: Sendable {
             lines.append("Permission: \(entry.permission.title)")
             lines.append("  Usage: \(entry.usageDescription)")
 
-            if let key = entry.permission.infoPlistKey {
-                lines.append("  Info.plist Key: \(key)")
+            let keys = entry.permission.infoPlistKeys
+            if !keys.isEmpty {
+                lines.append("  Info.plist Keys: \(keys.joined(separator: ", "))")
             }
             if let cap = entry.permission.requiredCapability {
                 lines.append("  Capability: \(cap)")

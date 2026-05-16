@@ -228,6 +228,19 @@ extension Permission {
         }
     }
 
+    /// All Info.plist keys required for this permission.
+    /// Most permissions need only one; `.location(.precise)` and `.health(.readWrite)` require two.
+    public var infoPlistKeys: [String] {
+        switch self {
+        case .location(.precise):
+            return ["NSLocationWhenInUseUsageDescription", "NSLocationTemporaryFullAccuracyUsageDescription"]
+        case .health(.readWrite):
+            return ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"]
+        default:
+            return infoPlistKey.map { [$0] } ?? []
+        }
+    }
+
     /// The Info.plist key required for this permission, if any.
     public var infoPlistKey: String? {
         switch self {
@@ -242,7 +255,12 @@ extension Permission {
         case .contacts: return "NSContactsUsageDescription"
         case .calendar: return "NSCalendarsUsageDescription"
         case .reminders: return "NSRemindersUsageDescription"
-        case .notifications, .criticalAlerts: return nil // No Info.plist key needed
+        case .notifications, .criticalAlerts:
+            #if os(macOS)
+            return "NSUserNotificationsUsageDescription"
+            #else
+            return nil
+            #endif
         case .bluetooth: return "NSBluetoothAlwaysUsageDescription"
         case .localNetwork: return "NSLocalNetworkUsageDescription"
         case .nearbyInteraction: return "NSNearbyInteractionUsageDescription"
@@ -328,7 +346,7 @@ public enum InfoPlistHelper {
     public static func requiredKeys(for permissions: [Permission]) -> [String: String] {
         var keys: [String: String] = [:]
         for permission in permissions {
-            if let key = permission.infoPlistKey {
+            for key in permission.infoPlistKeys {
                 keys[key] = permission.description
             }
         }
@@ -342,6 +360,7 @@ public enum InfoPlistHelper {
             "NSMicrophoneUsageDescription": "Microphone access",
             "NSLocationWhenInUseUsageDescription": "Location when in use",
             "NSLocationAlwaysAndWhenInUseUsageDescription": "Location always",
+            "NSLocationTemporaryFullAccuracyUsageDescription": "Precise location (temporary full accuracy)",
             "NSPhotoLibraryUsageDescription": "Photo library read/write",
             "NSPhotoLibraryAddUsageDescription": "Photo library add only",
             "NSContactsUsageDescription": "Contacts access",
@@ -361,6 +380,7 @@ public enum InfoPlistHelper {
             "NSLocalNetworkUsageDescription": "Local network discovery",
             "NSNearbyInteractionUsageDescription": "Nearby interaction (UWB)",
             "NSAppleMusicUsageDescription": "Apple Music / media library",
+            "NSUserNotificationsUsageDescription": "User notifications (macOS sandboxed apps)",
         ]
     }
 
@@ -370,11 +390,15 @@ public enum InfoPlistHelper {
         for permissions: [Permission],
         in bundle: Bundle = .main
     ) -> [String] {
-        let required = requiredKeys(for: permissions)
+        var seen = Set<String>()
         var missing: [String] = []
-        for (key, _) in required {
-            if bundle.object(forInfoDictionaryKey: key) == nil {
-                missing.append(key)
+        for permission in permissions {
+            for key in permission.infoPlistKeys {
+                guard !seen.contains(key) else { continue }
+                seen.insert(key)
+                if bundle.object(forInfoDictionaryKey: key) == nil {
+                    missing.append(key)
+                }
             }
         }
         return missing

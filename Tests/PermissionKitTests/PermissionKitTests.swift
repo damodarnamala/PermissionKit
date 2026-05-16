@@ -105,15 +105,172 @@ struct PermissionMetadataTests {
         }
     }
 
-    @Test("Info.plist keys are set for permissions that need them")
-    func infoPlistKeys() {
-        #expect(Permission.camera.infoPlistKey == "NSCameraUsageDescription")
-        #expect(Permission.microphone.infoPlistKey == "NSMicrophoneUsageDescription")
+    // MARK: - infoPlistKey
+
+    @Test("infoPlistKey — location variants")
+    func infoPlistKeyLocation() {
         #expect(Permission.location(.whenInUse).infoPlistKey == "NSLocationWhenInUseUsageDescription")
         #expect(Permission.location(.always).infoPlistKey == "NSLocationAlwaysAndWhenInUseUsageDescription")
+        // precise falls back to whenInUse as primary key; full accuracy key is in infoPlistKeys
+        #expect(Permission.location(.precise).infoPlistKey == "NSLocationWhenInUseUsageDescription")
+    }
+
+    @Test("infoPlistKey — media permissions")
+    func infoPlistKeyMedia() {
+        #expect(Permission.camera.infoPlistKey == "NSCameraUsageDescription")
+        #expect(Permission.microphone.infoPlistKey == "NSMicrophoneUsageDescription")
+        #expect(Permission.photos(.readWrite).infoPlistKey == "NSPhotoLibraryUsageDescription")
+        #expect(Permission.photos(.limited).infoPlistKey == "NSPhotoLibraryUsageDescription")
+        #expect(Permission.photos(.addOnly).infoPlistKey == "NSPhotoLibraryAddUsageDescription")
+        #expect(Permission.mediaLibrary.infoPlistKey == "NSAppleMusicUsageDescription")
+    }
+
+    @Test("infoPlistKey — communication permissions")
+    func infoPlistKeyComm() {
         #expect(Permission.contacts.infoPlistKey == "NSContactsUsageDescription")
+        #expect(Permission.calendar(.fullAccess).infoPlistKey == "NSCalendarsUsageDescription")
+        #expect(Permission.calendar(.read).infoPlistKey == "NSCalendarsUsageDescription")
+        #expect(Permission.calendar(.write).infoPlistKey == "NSCalendarsUsageDescription")
+        #expect(Permission.reminders.infoPlistKey == "NSRemindersUsageDescription")
+    }
+
+    @Test("infoPlistKey — connectivity permissions")
+    func infoPlistKeyConnectivity() {
+        #expect(Permission.bluetooth.infoPlistKey == "NSBluetoothAlwaysUsageDescription")
+        #expect(Permission.localNetwork.infoPlistKey == "NSLocalNetworkUsageDescription")
+        #expect(Permission.nearbyInteraction.infoPlistKey == "NSNearbyInteractionUsageDescription")
+    }
+
+    @Test("infoPlistKey — identity & tracking permissions")
+    func infoPlistKeyIdentity() {
+        #expect(Permission.biometrics(.faceID).infoPlistKey == "NSFaceIDUsageDescription")
+        #expect(Permission.biometrics(.any).infoPlistKey == "NSFaceIDUsageDescription")
+        // touchID: Face ID key included as safety net for any device
+        #expect(Permission.biometrics(.touchID).infoPlistKey == "NSFaceIDUsageDescription")
         #expect(Permission.tracking.infoPlistKey == "NSUserTrackingUsageDescription")
+    }
+
+    @Test("infoPlistKey — intelligence permissions")
+    func infoPlistKeyIntelligence() {
+        #expect(Permission.siri.infoPlistKey == "NSSiriUsageDescription")
+        #expect(Permission.speechRecognition.infoPlistKey == "NSSpeechRecognitionUsageDescription")
+    }
+
+    @Test("infoPlistKey — health & fitness permissions")
+    func infoPlistKeyHealth() {
+        #expect(Permission.health(.read).infoPlistKey == "NSHealthShareUsageDescription")
+        #expect(Permission.health(.readWrite).infoPlistKey == "NSHealthShareUsageDescription")
+        #expect(Permission.health(.write).infoPlistKey == "NSHealthUpdateUsageDescription")
+        #expect(Permission.motion.infoPlistKey == "NSMotionUsageDescription")
+    }
+
+    @Test("infoPlistKey — smart home permissions")
+    func infoPlistKeySmartHome() {
+        #expect(Permission.homeKit.infoPlistKey == "NSHomeKitUsageDescription")
+        #expect(Permission.nfc.infoPlistKey == "NFCReaderUsageDescription")
+    }
+
+    @Test("infoPlistKey — macOS-only permissions return nil (TCC managed)")
+    func infoPlistKeyMacOS() {
+        #expect(Permission.screenRecording.infoPlistKey == nil)
+        #expect(Permission.fullDiskAccess.infoPlistKey == nil)
+        #expect(Permission.accessibility.infoPlistKey == nil)
+        #expect(Permission.inputMonitoring.infoPlistKey == nil)
+        #expect(Permission.automation.infoPlistKey == nil)
+    }
+
+    @Test("infoPlistKey — watchOS-only permissions return nil")
+    func infoPlistKeyWatchOS() {
+        #expect(Permission.workoutExtension.infoPlistKey == nil)
+        #expect(Permission.mindfulnessSession.infoPlistKey == nil)
+    }
+
+    @Test("infoPlistKey — notifications")
+    func infoPlistKeyNotifications() {
+        // iOS/tvOS/watchOS: no plist key needed for UNUserNotificationCenter
+        // macOS: sandboxed apps require NSUserNotificationsUsageDescription
+        #if os(macOS)
+        #expect(Permission.notifications.infoPlistKey == "NSUserNotificationsUsageDescription")
+        #expect(Permission.criticalAlerts.infoPlistKey == "NSUserNotificationsUsageDescription")
+        #else
         #expect(Permission.notifications.infoPlistKey == nil)
+        #expect(Permission.criticalAlerts.infoPlistKey == nil)
+        #endif
+    }
+
+    // MARK: - infoPlistKeys (multi-key permissions)
+
+    @Test("infoPlistKeys — precise location returns two keys")
+    func infoPlistKeysLocation() {
+        let keys = Permission.location(.precise).infoPlistKeys
+        #expect(keys.count == 2)
+        #expect(keys.contains("NSLocationWhenInUseUsageDescription"))
+        #expect(keys.contains("NSLocationTemporaryFullAccuracyUsageDescription"))
+    }
+
+    @Test("infoPlistKeys — whenInUse and always return one key each")
+    func infoPlistKeysSingleLocation() {
+        #expect(Permission.location(.whenInUse).infoPlistKeys.count == 1)
+        #expect(Permission.location(.always).infoPlistKeys.count == 1)
+    }
+
+    @Test("infoPlistKeys — health readWrite returns two keys")
+    func infoPlistKeysHealthReadWrite() {
+        let keys = Permission.health(.readWrite).infoPlistKeys
+        #expect(keys.count == 2)
+        #expect(keys.contains("NSHealthShareUsageDescription"))
+        #expect(keys.contains("NSHealthUpdateUsageDescription"))
+    }
+
+    @Test("infoPlistKeys — health read returns one key")
+    func infoPlistKeysHealthRead() {
+        let keys = Permission.health(.read).infoPlistKeys
+        #expect(keys.count == 1)
+        #expect(keys.contains("NSHealthShareUsageDescription"))
+    }
+
+    @Test("infoPlistKeys — health write returns one key")
+    func infoPlistKeysHealthWrite() {
+        let keys = Permission.health(.write).infoPlistKeys
+        #expect(keys.count == 1)
+        #expect(keys.contains("NSHealthUpdateUsageDescription"))
+    }
+
+    @Test("infoPlistKeys — single-key permissions return one-element array")
+    func infoPlistKeysSingleKey() {
+        #expect(Permission.camera.infoPlistKeys == ["NSCameraUsageDescription"])
+        #expect(Permission.microphone.infoPlistKeys == ["NSMicrophoneUsageDescription"])
+        #expect(Permission.contacts.infoPlistKeys == ["NSContactsUsageDescription"])
+        #expect(Permission.tracking.infoPlistKeys == ["NSUserTrackingUsageDescription"])
+        #expect(Permission.bluetooth.infoPlistKeys == ["NSBluetoothAlwaysUsageDescription"])
+        #expect(Permission.localNetwork.infoPlistKeys == ["NSLocalNetworkUsageDescription"])
+        #expect(Permission.nearbyInteraction.infoPlistKeys == ["NSNearbyInteractionUsageDescription"])
+        #expect(Permission.motion.infoPlistKeys == ["NSMotionUsageDescription"])
+        #expect(Permission.homeKit.infoPlistKeys == ["NSHomeKitUsageDescription"])
+        #expect(Permission.nfc.infoPlistKeys == ["NFCReaderUsageDescription"])
+        #expect(Permission.siri.infoPlistKeys == ["NSSiriUsageDescription"])
+        #expect(Permission.speechRecognition.infoPlistKeys == ["NSSpeechRecognitionUsageDescription"])
+        #expect(Permission.photos(.readWrite).infoPlistKeys == ["NSPhotoLibraryUsageDescription"])
+        #expect(Permission.photos(.addOnly).infoPlistKeys == ["NSPhotoLibraryAddUsageDescription"])
+        #expect(Permission.mediaLibrary.infoPlistKeys == ["NSAppleMusicUsageDescription"])
+        #expect(Permission.reminders.infoPlistKeys == ["NSRemindersUsageDescription"])
+        #expect(Permission.calendar(.fullAccess).infoPlistKeys == ["NSCalendarsUsageDescription"])
+        #expect(Permission.biometrics(.faceID).infoPlistKeys == ["NSFaceIDUsageDescription"])
+    }
+
+    @Test("infoPlistKeys — no-key permissions return empty array")
+    func infoPlistKeysEmpty() {
+        #expect(Permission.screenRecording.infoPlistKeys.isEmpty)
+        #expect(Permission.fullDiskAccess.infoPlistKeys.isEmpty)
+        #expect(Permission.accessibility.infoPlistKeys.isEmpty)
+        #expect(Permission.inputMonitoring.infoPlistKeys.isEmpty)
+        #expect(Permission.automation.infoPlistKeys.isEmpty)
+        #expect(Permission.workoutExtension.infoPlistKeys.isEmpty)
+        #expect(Permission.mindfulnessSession.infoPlistKeys.isEmpty)
+        #if !os(macOS)
+        #expect(Permission.notifications.infoPlistKeys.isEmpty)
+        #expect(Permission.criticalAlerts.infoPlistKeys.isEmpty)
+        #endif
     }
 }
 
@@ -206,25 +363,73 @@ struct UnsupportedHandlerTests {
 @Suite("InfoPlistHelper Tests")
 struct InfoPlistHelperTests {
 
-    @Test("Required keys returns correct keys")
-    func requiredKeys() {
+    @Test("requiredKeys returns correct keys for single-key permissions")
+    func requiredKeysSingle() {
         let keys = InfoPlistHelper.requiredKeys(for: [.camera, .microphone])
         #expect(keys["NSCameraUsageDescription"] != nil)
         #expect(keys["NSMicrophoneUsageDescription"] != nil)
+        #expect(keys.count == 2)
     }
 
-    @Test("All keys dictionary is populated")
+    @Test("requiredKeys returns both keys for precise location")
+    func requiredKeysPreciseLocation() {
+        let keys = InfoPlistHelper.requiredKeys(for: [.location(.precise)])
+        #expect(keys["NSLocationWhenInUseUsageDescription"] != nil)
+        #expect(keys["NSLocationTemporaryFullAccuracyUsageDescription"] != nil)
+        #expect(keys.count == 2)
+    }
+
+    @Test("requiredKeys returns both keys for health readWrite")
+    func requiredKeysHealthReadWrite() {
+        let keys = InfoPlistHelper.requiredKeys(for: [.health(.readWrite)])
+        #expect(keys["NSHealthShareUsageDescription"] != nil)
+        #expect(keys["NSHealthUpdateUsageDescription"] != nil)
+        #expect(keys.count == 2)
+    }
+
+    @Test("requiredKeys returns empty for no-key permissions")
+    func requiredKeysNoKey() {
+        let keys = InfoPlistHelper.requiredKeys(for: [.screenRecording, .fullDiskAccess, .workoutExtension])
+        #expect(keys.isEmpty)
+    }
+
+    @Test("All keys dictionary is populated and includes new keys")
     func allKeys() {
         let keys = InfoPlistHelper.allKeys
-        #expect(keys.count > 15)
+        #expect(keys.count > 20)
         #expect(keys["NSCameraUsageDescription"] != nil)
+        #expect(keys["NSLocationTemporaryFullAccuracyUsageDescription"] != nil)
+        #expect(keys["NSHealthUpdateUsageDescription"] != nil)
+        #expect(keys["NSUserNotificationsUsageDescription"] != nil)
     }
 
-    @Test("Validates missing keys")
+    @Test("validateInfoPlist reports missing keys")
     func validateMissingKeys() {
         let missing = InfoPlistHelper.validateInfoPlist(for: [.camera, .microphone])
         #expect(missing.contains("NSCameraUsageDescription"))
         #expect(missing.contains("NSMicrophoneUsageDescription"))
+    }
+
+    @Test("validateInfoPlist reports both precise location keys as missing")
+    func validatePreciseLocationKeys() {
+        let missing = InfoPlistHelper.validateInfoPlist(for: [.location(.precise)])
+        #expect(missing.contains("NSLocationWhenInUseUsageDescription"))
+        #expect(missing.contains("NSLocationTemporaryFullAccuracyUsageDescription"))
+    }
+
+    @Test("validateInfoPlist reports both health readWrite keys as missing")
+    func validateHealthReadWriteKeys() {
+        let missing = InfoPlistHelper.validateInfoPlist(for: [.health(.readWrite)])
+        #expect(missing.contains("NSHealthShareUsageDescription"))
+        #expect(missing.contains("NSHealthUpdateUsageDescription"))
+    }
+
+    @Test("validateInfoPlist deduplicates overlapping keys")
+    func validateDeduplication() {
+        // whenInUse and precise share NSLocationWhenInUseUsageDescription
+        let missing = InfoPlistHelper.validateInfoPlist(for: [.location(.whenInUse), .location(.precise)])
+        let whenInUseCount = missing.filter { $0 == "NSLocationWhenInUseUsageDescription" }.count
+        #expect(whenInUseCount == 1)
     }
 }
 
