@@ -9,17 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`permissionkit` CLI tool** — SwiftLint-style command-line app managed through `.permissionkit.yml` config file; install via `make install`
+- **YAML configuration** (`.permissionkit.yml`) — define `app_name`, `output_dir`, `permissions`, `bonjour_services` in YAML format
+- **CLI commands**: `generate` (auto-generate files), `init` (create template config), `lint` (validate config), `report` (print permissions summary)
 - **`PermissionManifest`** — declarative manifest to define all app permissions in one place and auto-generate Info.plist, entitlements, and xcconfig files
 - **JSON configuration support** — define permissions in a `permissions.json` file with permission names, variants, and usage descriptions
-- **CLI generator tool** (`permission-plist-generator`) — reads `permissions.json` and outputs `Info.plist`, `.entitlements`, and `.xcconfig` files
-- **SPM command plugin** (`GeneratePermissionPlist`) — run `swift package plugin generate-permission-plist` or use from Xcode's right-click menu
-- **`Permission.requiredCapability`** — Xcode capability identifier for each permission (e.g., `com.apple.security.device.camera`)
-- **`Permission.entitlements`** — full entitlements dictionary for `.entitlements` file generation per permission
-- **Bonjour services helper** — `generateBonjourServices(serviceTypes:)` for local network permission `NSBonjourServices` array
-- **Manifest validation** — `validateBundle()` checks at runtime that all required Info.plist keys are present
-- **Human-readable report** — `manifest.report()` prints a summary of all permissions, plist keys, and capabilities
+- **Build script** (`generate-permissions.sh`) — standalone shell script that works with any Xcode project, no SPM required
+- **SPM command plugin** (`GeneratePermissionPlist`) — run `swift package plugin generate-permission-plist`
+- **`Permission.requiredCapability`** — Xcode capability identifier for each permission
+- **`Permission.entitlements`** — full entitlements dictionary for `.entitlements` file generation
+- **Bonjour services helper** — `generateBonjourServices(serviceTypes:)` for local network `NSBonjourServices` array
+- **Manifest validation** — `validateBundle()` checks that all required Info.plist keys are present
 
-## [1.0.0] - 2025-01-01
+## [0.0.1] - 2025-05-16
 
 ### Added
 

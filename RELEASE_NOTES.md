@@ -1,86 +1,92 @@
-# PermissionKit v1.1.0
+# PermissionKit v1.1.0 — SwiftLint-Style CLI for Permissions
 
-**Auto-Generate Info.plist & Entitlements** — Never forget a privacy key or capability again.
+Stop manually adding `NS*UsageDescription` keys to Info.plist and toggling capabilities in Xcode. **v1.1.0** introduces a **SwiftLint-style CLI tool** — configure permissions in a `.permissionkit.yml` file and auto-generate everything your host app needs.
+
+---
 
 ## What's New
 
-### PermissionManifest
+### `permissionkit` CLI Tool
 
-Define all your app's permissions in one place and auto-generate everything Xcode needs:
-
-```swift
-let manifest = PermissionManifest(permissions: [
-    PermissionManifest.entry(.camera, usage: "Take photos for your profile"),
-    PermissionManifest.entry(.location(.whenInUse), usage: "Show nearby places"),
-    PermissionManifest.entry(.notifications(.default), usage: "Send order updates"),
-    PermissionManifest.entry(.health(.readWrite), usage: "Track your workouts"),
-])
-
-let plistXML = manifest.generateInfoPlist()          // Complete Info.plist
-let entitlements = manifest.generateEntitlementsPlist() // .entitlements file
-let missing = manifest.validateBundle()                // Runtime validation
-```
-
-### JSON Configuration
-
-Create a `permissions.json` and generate files automatically:
-
-```json
-{
-  "permissions": [
-    { "permission": "camera", "usage": "Take photos for your profile" },
-    { "permission": "location", "variant": "whenInUse", "usage": "Show nearby places" },
-    { "permission": "health", "variant": "readWrite", "usage": "Track your workouts" }
-  ]
-}
-```
-
-### CLI Generator Tool
+Install once, use from any Xcode project:
 
 ```bash
-swift run permission-plist-generator permissions.json --app-name MyApp --output-dir MyApp/
+# Install
+cd PermissionKit && make install
+
+# In your app project
+cd ~/Projects/MyApp
+permissionkit init --app-name MyApp    # Create .permissionkit.yml
+permissionkit generate                  # Generate Info.plist, entitlements, xcconfig
+permissionkit lint                      # Validate your config
+permissionkit report                    # Print permissions summary
 ```
 
-Generates `MyApp-Info.plist`, `MyApp.entitlements`, and `MyApp.xcconfig` — ready to drop into your Xcode project.
+### YAML Configuration (`.permissionkit.yml`)
 
-### SPM Command Plugin
+Like `.swiftlint.yml` — place it in your project root:
+
+```yaml
+app_name: MyApp
+output_dir: MyApp/
+
+permissions:
+  - permission: camera
+    usage: "Take photos for your profile"
+
+  - permission: location
+    variant: whenInUse
+    usage: "Show nearby places on the map"
+
+  - permission: health
+    variant: readWrite
+    usage: "Track your workouts"
+
+  - permission: notifications
+    usage: "Send you order updates"
+
+  - permission: biometrics
+    variant: faceID
+    usage: "Secure app login"
+```
+
+### Xcode Build Phase Integration
+
+Add to your build phases for automatic regeneration on every build:
 
 ```bash
-swift package plugin generate-permission-plist
+if command -v permissionkit &> /dev/null; then
+    permissionkit generate
+fi
 ```
 
-Also available in Xcode via **right-click target → GeneratePermissionPlist**.
+### Generated Output
 
-### New Permission Metadata
+| File | Purpose |
+|---|---|
+| `MyApp-Info.plist` | Privacy usage descriptions (`NSCameraUsageDescription`, etc.) |
+| `MyApp.entitlements` | Capabilities (`com.apple.developer.healthkit`, etc.) |
+| `MyApp.xcconfig` | Build settings that wire up both files automatically |
 
-Every permission now exposes its Xcode capability and entitlements:
+---
 
-```swift
-Permission.camera.requiredCapability // "com.apple.security.device.camera"
-Permission.camera.entitlements       // ["com.apple.security.device.camera": true]
-Permission.health(.readWrite).entitlements
-// ["com.apple.developer.healthkit": true, "com.apple.developer.healthkit.access": ["health-records"]]
-```
+## All Changes
 
-## Full Changelog
-
-### Added
-- `PermissionManifest` — declarative permission config with Info.plist, entitlements, and xcconfig generation
-- JSON configuration support (`permissions.json`) with permission names, variants, and usage descriptions
-- CLI tool `permission-plist-generator` with `--app-name` flag for host app file generation
-- SPM command plugin `GeneratePermissionPlist` for Xcode and CLI integration
-- `Permission.requiredCapability` — Xcode capability identifier per permission
-- `Permission.entitlements` — entitlements dictionary per permission
-- Bonjour services helper for local network permission
-- Runtime bundle validation via `manifest.validateBundle()`
-- Human-readable manifest report via `manifest.report()`
+- **`permissionkit` CLI** — installable via `make install`, managed via `.permissionkit.yml`
+- **YAML configuration** — `app_name`, `output_dir`, `permissions`, `bonjour_services`
+- **CLI commands** — `generate`, `init`, `lint`, `report`
+- **`PermissionManifest`** — declarative Swift API for code-level permission management
+- **Build script** — `generate-permissions.sh` for projects that prefer a shell-based approach
+- **SPM command plugin** — `GeneratePermissionPlist` for SPM-based projects
+- **`Permission.requiredCapability`** — Xcode capability identifier per permission
+- **`Permission.entitlements`** — entitlements dictionary per permission
+- **Bonjour services helper** — `generateBonjourServices(serviceTypes:)` for local network
+- **Runtime validation** — `manifest.validateBundle()` checks for missing Info.plist keys
 
 ## Installation
 
 ```swift
-dependencies: [
-    .package(url: "https://github.com/your-org/PermissionKit.git", from: "1.1.0")
-]
+.package(url: "https://github.com/nicklasedvardsen/PermissionKit.git", from: "1.1.0")
 ```
 
-**Full Changelog**: 1.0.0...1.1.0
+**Full Changelog**: `1.0.0...1.1.0`

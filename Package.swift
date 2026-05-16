@@ -16,15 +16,32 @@ let package = Package(
             name: "PermissionKit",
             targets: ["PermissionKit"]
         ),
+        .executable(
+            name: "permissionkit",
+            targets: ["PermissionKitCLI"]
+        ),
         .plugin(
             name: "GeneratePermissionPlist",
             targets: ["GeneratePermissionPlist"]
         ),
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.0"),
+    ],
     targets: [
         .target(
             name: "PermissionKit",
             path: "Sources/PermissionKit"
+        ),
+        .executableTarget(
+            name: "PermissionKitCLI",
+            dependencies: [
+                "PermissionKit",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Yams", package: "Yams"),
+            ],
+            path: "Sources/PermissionKitCLI"
         ),
         .executableTarget(
             name: "permission-plist-generator",

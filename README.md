@@ -16,7 +16,7 @@ A unified, expressive, and developer-friendly permissions framework covering **a
 - **Async/await first** with Combine and AsyncStream bridges
 - **SwiftUI components** — gates, buttons, badges, flows, and sheets
 - **Combinators** — sequence, concurrent, and conditional chain patterns
-- **Auto-generate Info.plist & entitlements** — CLI tool and SPM plugin
+- **Auto-generate Info.plist & entitlements** — SwiftLint-style CLI with YAML config
 - **Testable by design** — built-in mocking infrastructure
 - **Zero dependencies** — pure Apple SDK, conditional imports per platform
 
@@ -195,9 +195,127 @@ let missing = InfoPlistHelper.validateInfoPlist(for: [.camera, .microphone, .loc
 
 ## Auto-Generate Info.plist & Entitlements
 
-> **Never forget a privacy key or capability again.** Define your permissions once, generate everything your host app's Xcode project needs automatically — Info.plist privacy keys, `.entitlements` capabilities, and build settings.
+> **Never forget a privacy key or capability again.** Define your permissions in a `.permissionkit.yml` file, then use the CLI to generate everything your host app's Xcode project needs — Info.plist privacy keys, `.entitlements` capabilities, and build settings.
 >
-> These files are generated for **your app** (the one that depends on PermissionKit), not for the framework itself.
+> Works like **SwiftLint** — install once, configure via YAML, run on every build.
+
+### 🚀 CLI Tool (Recommended)
+
+#### Install
+
+```bash
+# From the PermissionKit repo
+git clone https://github.com/your-org/PermissionKit.git
+cd PermissionKit
+make install
+```
+
+This installs the `permissionkit` binary to `/usr/local/bin/`.
+
+#### Quick Start
+
+```bash
+# In your host app's project root
+cd ~/Projects/MyApp
+
+# Create a .permissionkit.yml config
+permissionkit init --app-name MyApp
+
+# Edit .permissionkit.yml to configure your permissions
+# Then generate the files
+permissionkit generate
+```
+
+#### YAML Configuration (`.permissionkit.yml`)
+
+```yaml
+# PermissionKit Configuration
+app_name: MyApp
+output_dir: MyApp/
+
+permissions:
+  - permission: camera
+    usage: "Take photos for your profile"
+
+  - permission: microphone
+    usage: "Record voice messages"
+
+  - permission: location
+    variant: whenInUse
+    usage: "Show nearby places on the map"
+
+  - permission: photos
+    variant: readWrite
+    usage: "Save edited images"
+
+  - permission: notifications
+    usage: "Send you order updates"
+
+  - permission: health
+    variant: readWrite
+    usage: "Track your workouts"
+
+  - permission: biometrics
+    variant: faceID
+    usage: "Secure app login"
+
+# Optional: Bonjour services for local network
+# bonjour_services:
+#   - "_myapp._tcp"
+#   - "_myapp._udp"
+```
+
+#### CLI Commands
+
+| Command | Description |
+|---|---|
+| `permissionkit init --app-name MyApp` | Create a template `.permissionkit.yml` |
+| `permissionkit init --app-name MyApp --full` | Create with all permissions as examples |
+| `permissionkit generate` | Generate Info.plist, entitlements & xcconfig |
+| `permissionkit generate --config path/to/config.yml` | Use a custom config path |
+| `permissionkit lint` | Validate your YAML config for errors |
+| `permissionkit report` | Print a detailed permissions report |
+
+CLI flags (`--app-name`, `--output-dir`) override YAML values when provided.
+
+#### Xcode Build Phase (Fully Automated)
+
+1. Install the CLI: `make install`
+2. In Xcode → your target → **Build Phases** → **+** → **New Run Script Phase**
+3. Paste:
+   ```bash
+   if command -v permissionkit &> /dev/null; then
+       permissionkit generate
+   fi
+   ```
+4. Drag the phase **above** "Compile Sources"
+5. Build — files are regenerated automatically before compilation
+
+**Supported variants:**
+
+| Permission | Variants |
+|---|---|
+| `location` | `whenInUse` (default), `always`, `precise` |
+| `photos` | `readWrite` (default), `addOnly`, `limited` |
+| `calendar` | `fullAccess` (default), `read`, `write` |
+| `health` | `readWrite` (default), `read`, `write` |
+| `biometrics` | `any` (default), `faceID`, `touchID` |
+
+**All supported permissions:** `camera`, `microphone`, `location`, `photos`, `contacts`, `calendar`, `reminders`, `notifications`, `criticalAlerts`, `bluetooth`, `localNetwork`, `nearbyInteraction`, `biometrics`, `tracking`, `siri`, `speechRecognition`, `health`, `motion`, `homeKit`, `nfc`, `mediaLibrary`, `screenRecording`, `fullDiskAccess`, `accessibility`, `inputMonitoring`, `automation`, `workoutExtension`, `mindfulnessSession`
+
+#### Generated Files
+
+| File | Contents |
+|---|---|
+| `MyApp-Info.plist` | Privacy usage descriptions (`NSCameraUsageDescription`, etc.) |
+| `MyApp.entitlements` | Capabilities (`com.apple.developer.healthkit`, etc.) |
+| `MyApp.xcconfig` | Build settings that wire up both files automatically |
+
+Then in Xcode:
+1. Drag the generated files into your app target
+2. Set `MyApp-Info.plist` in **Build Settings → Info.plist File**
+3. Set `MyApp.entitlements` in **Build Settings → Code Signing Entitlements**
+4. Or include `MyApp.xcconfig` in your build configuration — it sets both automatically
 
 ### 🔧 Using PermissionManifest in Code
 
@@ -230,9 +348,9 @@ if !missing.isEmpty {
 print(manifest.report())
 ```
 
-### 📄 Using JSON Configuration
+### 📄 Using JSON Configuration (Alternative)
 
-Create a `permissions.json` file in **your app's** project root:
+If you prefer JSON over YAML, create a `permissions.json` file in **your app's** project root:
 
 ```json
 {
@@ -258,31 +376,49 @@ Create a `permissions.json` file in **your app's** project root:
 | `health` | `readWrite` (default), `read`, `write` |
 | `biometrics` | `any` (default), `faceID`, `touchID` |
 
-### ⚡ CLI Generator Tool
+### ⚡ Build Script (Works with Any Xcode Project)
 
-Run the generator from your app's directory to produce all required files:
+No SPM required — copy the script into your host app and run it standalone or as an **Xcode Build Phase**:
+
+**Standalone:**
 
 ```bash
-swift run permission-plist-generator permissions.json --app-name MyApp --output-dir MyApp/
+./Scripts/generate-permissions.sh permissions.json \
+    --app-name MyApp \
+    --output-dir MyApp/
 ```
+
+**Xcode Build Phase (fully automated on every build):**
+
+1. Copy `Scripts/generate-permissions.sh` and `permissions.json` into your app project
+2. In Xcode → your target → **Build Phases** → **+** → **New Run Script Phase**
+3. Paste:
+   ```bash
+   ${SRCROOT}/Scripts/generate-permissions.sh \
+       ${SRCROOT}/permissions.json \
+       --app-name ${PRODUCT_NAME} \
+       --output-dir ${SRCROOT}/${PRODUCT_NAME}
+   ```
+4. Drag the phase **above** "Compile Sources"
+5. Build — files are generated automatically before compilation
 
 This generates three files **for your host app**:
 
 | File | Contents |
 |---|---|
-| `MyApp-Info.plist` | Complete Info.plist with all `NS*UsageDescription` privacy keys |
-| `MyApp.entitlements` | Entitlements file with all required capabilities |
-| `MyApp.xcconfig` | Build settings pointing to the generated files |
+| `MyApp-Info.plist` | Privacy usage descriptions (`NSCameraUsageDescription`, etc.) |
+| `MyApp.entitlements` | Capabilities (`com.apple.developer.healthkit`, etc.) |
+| `MyApp.xcconfig` | Build settings that wire up both files automatically |
 
-Then add these files to your Xcode project:
-1. Drag the generated files into your app target in Xcode
-2. Set `MyApp-Info.plist` as the target's Info.plist in **Build Settings → Info.plist File**
+Then in Xcode:
+1. Drag the generated files into your app target
+2. Set `MyApp-Info.plist` in **Build Settings → Info.plist File**
 3. Set `MyApp.entitlements` in **Build Settings → Code Signing Entitlements**
-4. Or simply include `MyApp.xcconfig` in your build configuration — it sets both automatically
+4. Or include `MyApp.xcconfig` in your build configuration — it sets both automatically
 
-### 🔌 SPM Command Plugin
+### 🔌 SPM Command Plugin (If Your App Uses SPM)
 
-Run directly from your app's package directory:
+If your host app is an SPM package, you can also run the plugin directly:
 
 ```bash
 swift package plugin generate-permission-plist
@@ -290,8 +426,6 @@ swift package plugin generate-permission-plist --output-dir Sources/MyApp
 ```
 
 Or in Xcode: **right-click your app target → GeneratePermissionPlist**.
-
-The plugin reads `permissions.json` from your app's project root and generates files into the specified directory.
 
 ### 🌐 Bonjour Services (Local Network)
 
