@@ -42,7 +42,7 @@ public struct PermissionButton: View {
             HStack(spacing: 8) {
                 if isRequesting {
                     ProgressView()
-                        #if !os(watchOS)
+                        #if !os(watchOS) && !os(tvOS)
                         .controlSize(.small)
                         #endif
                 } else {
