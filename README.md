@@ -195,9 +195,9 @@ let missing = InfoPlistHelper.validateInfoPlist(for: [.camera, .microphone, .loc
 
 ## Auto-Generate Info.plist & Entitlements
 
-PermissionKit can automatically generate your `Info.plist` privacy keys, `.entitlements` file, and Xcode capabilities from a single manifest — no more forgetting a `NS*UsageDescription` key.
+> **Never forget a privacy key or capability again.** Define your permissions once, generate everything Xcode needs automatically.
 
-### Using PermissionManifest in Code
+### 🔧 Using PermissionManifest in Code
 
 Define all your app's permissions in one place:
 
@@ -228,7 +228,7 @@ if !missing.isEmpty {
 print(manifest.report())
 ```
 
-### Using JSON Configuration
+### 📄 Using JSON Configuration
 
 Create a `permissions.json` file in your project root:
 
@@ -256,7 +256,7 @@ Create a `permissions.json` file in your project root:
 | `health` | `readWrite` (default), `read`, `write` |
 | `biometrics` | `any` (default), `faceID`, `touchID` |
 
-### CLI Generator Tool
+### ⚡ CLI Generator Tool
 
 Run the generator to produce all required files:
 
@@ -272,7 +272,7 @@ This generates three files:
 | `PermissionKit.entitlements` | Entitlements file with all required capabilities |
 | `PermissionKit.xcconfig` | Build settings pointing to the generated files |
 
-### SPM Command Plugin
+### 🔌 SPM Command Plugin
 
 Run directly from Swift Package Manager:
 
@@ -283,7 +283,7 @@ swift package plugin generate-permission-plist --output-dir Sources/MyApp
 
 Or in Xcode: **right-click your target → GeneratePermissionPlist**.
 
-### Bonjour Services (Local Network)
+### 🌐 Bonjour Services (Local Network)
 
 If your manifest includes `.localNetwork`, generate the `NSBonjourServices` array:
 
