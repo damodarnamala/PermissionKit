@@ -1,8 +1,415 @@
 import Testing
+import Foundation
 @testable import PermissionKit
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-    // Swift Testing Documentation
-    // https://developer.apple.com/documentation/testing
+// MARK: - Pure Data Model Tests (no global state)
+
+@Suite("PermissionStatus Tests")
+struct PermissionStatusTests {
+
+    @Test("isGranted returns true only for .granted")
+    func isGranted() {
+        #expect(PermissionStatus.granted.isGranted == true)
+        #expect(PermissionStatus.denied.isGranted == false)
+        #expect(PermissionStatus.notDetermined.isGranted == false)
+        #expect(PermissionStatus.restricted.isGranted == false)
+        #expect(PermissionStatus.limited.isGranted == false)
+        #expect(PermissionStatus.provisional.isGranted == false)
+        #expect(PermissionStatus.unknown.isGranted == false)
+    }
+
+    @Test("isDenied returns true only for .denied")
+    func isDenied() {
+        #expect(PermissionStatus.denied.isDenied == true)
+        #expect(PermissionStatus.granted.isDenied == false)
+    }
+
+    @Test("isNotDetermined returns true only for .notDetermined")
+    func isNotDetermined() {
+        #expect(PermissionStatus.notDetermined.isNotDetermined == true)
+        #expect(PermissionStatus.granted.isNotDetermined == false)
+    }
+
+    @Test("canAskAgain is true only for .notDetermined")
+    func canAskAgain() {
+        #expect(PermissionStatus.notDetermined.canAskAgain == true)
+        #expect(PermissionStatus.denied.canAskAgain == false)
+        #expect(PermissionStatus.restricted.canAskAgain == false)
+        #expect(PermissionStatus.granted.canAskAgain == false)
+    }
+
+    @Test("shouldShowSettings is true only for .denied")
+    func shouldShowSettings() {
+        #expect(PermissionStatus.denied.shouldShowSettings == true)
+        #expect(PermissionStatus.granted.shouldShowSettings == false)
+        #expect(PermissionStatus.notDetermined.shouldShowSettings == false)
+    }
+}
+
+@Suite("Permission Tests")
+struct PermissionTests {
+
+    @Test("Permission convenience statics resolve correctly")
+    func convenienceStatics() {
+        #expect(Permission.notifications == Permission.notifications(.default))
+        #expect(Permission.locationWhenInUse == Permission.location(.whenInUse))
+        #expect(Permission.locationAlways == Permission.location(.always))
+        #expect(Permission.photos == Permission.photos(.readWrite))
+        #expect(Permission.calendar == Permission.calendar(.fullAccess))
+        #expect(Permission.biometrics == Permission.biometrics(.any))
+    }
+
+    @Test("Permission groups contain expected permissions")
+    func groups() {
+        #expect(Permission.mediaCapture.contains(.camera))
+        #expect(Permission.mediaCapture.contains(.microphone))
+        #expect(Permission.social.contains(.contacts))
+    }
+
+    @Test("Permission equality works with associated values")
+    func equality() {
+        #expect(Permission.location(.whenInUse) == Permission.location(.whenInUse))
+        #expect(Permission.location(.whenInUse) != Permission.location(.always))
+        #expect(Permission.camera == Permission.camera)
+        #expect(Permission.camera != Permission.microphone)
+    }
+}
+
+@Suite("Permission Metadata Tests")
+struct PermissionMetadataTests {
+
+    @Test("All permissions have a title")
+    func titles() {
+        let permissions: [Permission] = [
+            .camera, .microphone, .contacts, .reminders, .bluetooth,
+            .tracking, .siri, .speechRecognition, .motion, .homeKit,
+            .nfc, .location(.whenInUse), .location(.always),
+            .photos(.readWrite), .photos(.addOnly),
+            .calendar(.read), .calendar(.fullAccess),
+            .notifications, .criticalAlerts, .localNetwork, .nearbyInteraction,
+            .biometrics(.faceID), .biometrics(.touchID),
+            .health(.read), .health(.write), .mediaLibrary,
+            .screenRecording, .fullDiskAccess, .accessibility,
+            .inputMonitoring, .automation, .workoutExtension, .mindfulnessSession,
+        ]
+        for permission in permissions {
+            #expect(!permission.title.isEmpty, "Title should not be empty for \(permission)")
+        }
+    }
+
+    @Test("All permissions have a system image name")
+    func systemImageNames() {
+        let permissions: [Permission] = [.camera, .microphone, .contacts, .location(.whenInUse)]
+        for permission in permissions {
+            #expect(!permission.systemImageName.isEmpty)
+        }
+    }
+
+    @Test("Info.plist keys are set for permissions that need them")
+    func infoPlistKeys() {
+        #expect(Permission.camera.infoPlistKey == "NSCameraUsageDescription")
+        #expect(Permission.microphone.infoPlistKey == "NSMicrophoneUsageDescription")
+        #expect(Permission.location(.whenInUse).infoPlistKey == "NSLocationWhenInUseUsageDescription")
+        #expect(Permission.location(.always).infoPlistKey == "NSLocationAlwaysAndWhenInUseUsageDescription")
+        #expect(Permission.contacts.infoPlistKey == "NSContactsUsageDescription")
+        #expect(Permission.tracking.infoPlistKey == "NSUserTrackingUsageDescription")
+        #expect(Permission.notifications.infoPlistKey == nil)
+    }
+}
+
+@Suite("PermissionResult Tests")
+struct PermissionResultTests {
+
+    @Test("PermissionResult computed properties")
+    func computedProperties() {
+        let granted = PermissionResult(permission: .camera, status: .granted, timestamp: Date())
+        #expect(granted.isGranted == true)
+        #expect(granted.shouldOpenSettings == false)
+
+        let denied = PermissionResult(permission: .camera, status: .denied, timestamp: Date())
+        #expect(denied.isGranted == false)
+        #expect(denied.shouldOpenSettings == true)
+    }
+}
+
+@Suite("MockPermissionHandler Tests")
+struct MockPermissionHandlerTests {
+
+    @Test("Mock handler returns stubbed status")
+    func stubbedStatus() async {
+        let mock = MockPermissionHandler(permission: .camera, status: .denied)
+        #expect(mock.status == .denied)
+        let result = await mock.request()
+        #expect(result == .denied)
+        #expect(mock.requestCallCount == 1)
+    }
+
+    @Test("Mock handler tracks request call count")
+    func requestCallCount() async {
+        let mock = MockPermissionHandler(permission: .microphone, status: .granted)
+        _ = await mock.request()
+        _ = await mock.request()
+        _ = await mock.request()
+        #expect(mock.requestCallCount == 3)
+    }
+
+    @Test("Mock handler can change status")
+    func statusChange() async {
+        let mock = MockPermissionHandler(permission: .camera, status: .notDetermined)
+        #expect(mock.status == .notDetermined)
+        mock.stubbedStatus = .granted
+        #expect(mock.status == .granted)
+    }
+
+    @Test("Mock handler reset clears call count")
+    func reset() async {
+        let mock = MockPermissionHandler(permission: .camera, status: .granted)
+        _ = await mock.request()
+        #expect(mock.requestCallCount == 1)
+        mock.reset()
+        #expect(mock.requestCallCount == 0)
+    }
+}
+
+@Suite("NotificationOptions Tests")
+struct NotificationOptionsTests {
+
+    @Test("Default options have alert, badge, sound enabled")
+    func defaultOptions() {
+        let options = NotificationOptions.default
+        #expect(options.alert == true)
+        #expect(options.badge == true)
+        #expect(options.sound == true)
+        #expect(options.criticalAlert == false)
+        #expect(options.provisional == false)
+    }
+
+    @Test("Provisional options set provisional flag")
+    func provisionalOptions() {
+        let options = NotificationOptions.provisional
+        #expect(options.provisional == true)
+    }
+}
+
+@Suite("UnsupportedHandler Tests")
+struct UnsupportedHandlerTests {
+
+    @Test("Unsupported handler returns unknown status")
+    func unknownStatus() async {
+        let handler = UnsupportedHandler(permission: .screenRecording)
+        #expect(handler.status == .unknown)
+        let result = await handler.request()
+        #expect(result == .unknown)
+    }
+}
+
+@Suite("InfoPlistHelper Tests")
+struct InfoPlistHelperTests {
+
+    @Test("Required keys returns correct keys")
+    func requiredKeys() {
+        let keys = InfoPlistHelper.requiredKeys(for: [.camera, .microphone])
+        #expect(keys["NSCameraUsageDescription"] != nil)
+        #expect(keys["NSMicrophoneUsageDescription"] != nil)
+    }
+
+    @Test("All keys dictionary is populated")
+    func allKeys() {
+        let keys = InfoPlistHelper.allKeys
+        #expect(keys.count > 15)
+        #expect(keys["NSCameraUsageDescription"] != nil)
+    }
+
+    @Test("Validates missing keys")
+    func validateMissingKeys() {
+        let missing = InfoPlistHelper.validateInfoPlist(for: [.camera, .microphone])
+        #expect(missing.contains("NSCameraUsageDescription"))
+        #expect(missing.contains("NSMicrophoneUsageDescription"))
+    }
+}
+
+// MARK: - Global State Tests (all serialized in one suite to avoid races)
+
+@Suite("Integration Tests", .serialized)
+struct IntegrationTests {
+
+    // MARK: - Registry Tests
+
+    @Test("Override handler returns mock status")
+    func overrideHandler() async {
+        let mock = MockPermissionHandler(permission: .camera, status: .denied)
+        PermissionKit.setHandler(mock, for: .camera)
+        defer { PermissionKit.resetHandler(for: .camera) }
+
+        #expect(Permission.camera.status == .denied)
+    }
+
+    @Test("Request through Permission enum uses mock")
+    func requestThroughEnum() async {
+        let mock = MockPermissionHandler(permission: .camera, status: .granted)
+        PermissionKit.setHandler(mock, for: .camera)
+        defer { PermissionKit.resetHandler(for: .camera) }
+
+        let result = await Permission.camera.request()
+        #expect(result == .granted)
+        #expect(mock.requestCallCount == 1)
+    }
+
+    @Test("Reset removes all overrides")
+    func resetHandlers() async {
+        let mock = MockPermissionHandler(permission: .homeKit, status: .denied)
+        PermissionKit.setHandler(mock, for: .homeKit)
+        PermissionKit.resetHandler(for: .homeKit)
+
+        let handler = PermissionKit.handler(for: .homeKit)
+        #expect(!(handler is MockPermissionHandler))
+    }
+
+    @Test("isGranted convenience on Permission works with mock")
+    func isGrantedConvenience() async {
+        let mock = MockPermissionHandler(permission: .contacts, status: .granted)
+        PermissionKit.setHandler(mock, for: .contacts)
+        defer { PermissionKit.resetHandler(for: .contacts) }
+
+        #expect(Permission.contacts.isGranted == true)
+
+        mock.stubbedStatus = .denied
+        #expect(Permission.contacts.isDenied == true)
+    }
+
+    // MARK: - TestHelper Tests
+
+    @Test("Mock single permission via TestHelper")
+    func mockSingle() async {
+        let mock = PermissionTestHelper.mock(.bluetooth, with: .granted)
+        defer { PermissionKit.resetHandler(for: .bluetooth) }
+
+        #expect(Permission.bluetooth.isGranted == true)
+        #expect(mock.requestCallCount == 0)
+    }
+
+    @Test("Mock multiple permissions via TestHelper")
+    func mockMultiple() {
+        PermissionTestHelper.mock([.nfc, .siri, .motion], with: .denied)
+        defer {
+            PermissionKit.resetHandler(for: .nfc)
+            PermissionKit.resetHandler(for: .siri)
+            PermissionKit.resetHandler(for: .motion)
+        }
+
+        #expect(Permission.nfc.isDenied == true)
+        #expect(Permission.siri.isDenied == true)
+        #expect(Permission.motion.isDenied == true)
+    }
+
+    @Test("Retrieve mock handler via TestHelper")
+    func retrieveMock() {
+        PermissionTestHelper.mock(.tracking, with: .granted)
+        defer { PermissionKit.resetHandler(for: .tracking) }
+
+        let mock = PermissionTestHelper.mockHandler(for: .tracking)
+        #expect(mock != nil)
+        #expect(mock?.status == .granted)
+    }
+
+    // MARK: - Sequence Tests
+
+    @Test("Sequence requests permissions in order")
+    func sequenceOrder() async {
+        PermissionKit.setHandler(MockPermissionHandler(permission: .camera, status: .granted), for: .camera)
+        PermissionKit.setHandler(MockPermissionHandler(permission: .microphone, status: .granted), for: .microphone)
+        PermissionKit.setHandler(MockPermissionHandler(permission: .notifications(.default), status: .denied), for: .notifications)
+        defer {
+            PermissionKit.resetHandler(for: .camera)
+            PermissionKit.resetHandler(for: .microphone)
+            PermissionKit.resetHandler(for: .notifications)
+        }
+
+        let results = await Permission.sequence([.camera, .microphone, .notifications]).request()
+
+        #expect(results.count == 3)
+        #expect(results[0].permission == .camera)
+        #expect(results[0].status == .granted)
+        #expect(results[1].permission == .microphone)
+        #expect(results[1].status == .granted)
+        #expect(results[2].permission == .notifications)
+        #expect(results[2].status == .denied)
+    }
+
+    @Test("Sequence stops on denied when configured")
+    func sequenceStopsOnDenied() async {
+        PermissionKit.setHandler(MockPermissionHandler(permission: .camera, status: .denied), for: .camera)
+        PermissionKit.setHandler(MockPermissionHandler(permission: .microphone, status: .granted), for: .microphone)
+        defer {
+            PermissionKit.resetHandler(for: .camera)
+            PermissionKit.resetHandler(for: .microphone)
+        }
+
+        let results = await Permission.sequence([.camera, .microphone])
+            .stoppingOnDenied()
+            .request()
+
+        #expect(results.count == 1)
+        #expect(results[0].status == .denied)
+    }
+
+    // MARK: - Concurrent Tests
+
+    @Test("Concurrent requests all permissions")
+    func concurrentAll() async {
+        PermissionKit.setHandler(MockPermissionHandler(permission: .nfc, status: .granted), for: .nfc)
+        PermissionKit.setHandler(MockPermissionHandler(permission: .siri, status: .denied), for: .siri)
+        PermissionKit.setHandler(MockPermissionHandler(permission: .motion, status: .granted), for: .motion)
+        defer {
+            PermissionKit.resetHandler(for: .nfc)
+            PermissionKit.resetHandler(for: .siri)
+            PermissionKit.resetHandler(for: .motion)
+        }
+
+        let results = await Permission.concurrent([.nfc, .siri, .motion]).request()
+
+        #expect(results.count == 3)
+        #expect(results[.nfc]?.status == .granted)
+        #expect(results[.siri]?.status == .denied)
+        #expect(results[.motion]?.status == .granted)
+    }
+
+    // MARK: - Chain Tests
+
+    @Test("Chain executes then block on match")
+    func thenOnMatch() async {
+        PermissionKit.setHandler(MockPermissionHandler(permission: .location(.whenInUse), status: .granted), for: .location(.whenInUse))
+        defer { PermissionKit.resetHandler(for: .location(.whenInUse)) }
+
+        let chain = await Permission.request(.location(.whenInUse))
+        #expect(chain.lastStatus == .granted)
+    }
+
+    @Test("Chain calls onDenied when denied")
+    func onDeniedCallback() async {
+        PermissionKit.setHandler(MockPermissionHandler(permission: .camera, status: .denied), for: .camera)
+        defer { PermissionKit.resetHandler(for: .camera) }
+
+        var deniedCalled = false
+        let chain = await Permission.request(.camera)
+        _ = await chain.onDenied {
+            deniedCalled = true
+        }
+
+        #expect(deniedCalled == true)
+    }
+
+    @Test("Chain calls onGranted when granted")
+    func onGrantedCallback() async {
+        PermissionKit.setHandler(MockPermissionHandler(permission: .camera, status: .granted), for: .camera)
+        defer { PermissionKit.resetHandler(for: .camera) }
+
+        var grantedCalled = false
+        let chain = await Permission.request(.camera)
+        _ = await chain.onGranted {
+            grantedCalled = true
+        }
+
+        #expect(grantedCalled == true)
+    }
 }
