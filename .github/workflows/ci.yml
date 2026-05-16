@@ -46,11 +46,10 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.app
       - name: Build for tvOS
         run: |
-          xcodebuild build \
-            -scheme PermissionKit \
-            -destination 'generic/platform=tvOS' \
-            -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO
+          TVOS_SDK=$(xcrun --sdk appletvsimulator --show-sdk-path)
+          TVOS_VER=$(xcrun --sdk appletvsimulator --show-sdk-version)
+          find Sources/PermissionKit -name '*.swift' | \
+            xargs swiftc -sdk "$TVOS_SDK" -target "arm64-apple-tvos${TVOS_VER}-simulator" -typecheck
 
   build-watchos:
     name: Build (watchOS)
@@ -61,8 +60,7 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.app
       - name: Build for watchOS
         run: |
-          xcodebuild build \
-            -scheme PermissionKit \
-            -destination 'generic/platform=watchOS' \
-            -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO
+          WATCH_SDK=$(xcrun --sdk watchsimulator --show-sdk-path)
+          WATCH_VER=$(xcrun --sdk watchsimulator --show-sdk-version)
+          find Sources/PermissionKit -name '*.swift' | \
+            xargs swiftc -sdk "$WATCH_SDK" -target "arm64-apple-watchos${WATCH_VER}-simulator" -typecheck

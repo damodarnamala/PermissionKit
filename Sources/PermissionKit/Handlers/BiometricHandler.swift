@@ -1,6 +1,6 @@
 // MARK: - BiometricHandler
 
-#if canImport(LocalAuthentication)
+#if canImport(LocalAuthentication) && !os(watchOS) && !os(tvOS)
 import LocalAuthentication
 import Foundation
 

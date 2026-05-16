@@ -34,8 +34,10 @@ final class LocationHandler: NSObject, PermissionHandler, CLLocationManagerDeleg
 
             DispatchQueue.main.async {
                 switch self.permission {
+                #if !os(tvOS)
                 case .location(.always):
                     self.manager.requestAlwaysAuthorization()
+                #endif
                 default:
                     self.manager.requestWhenInUseAuthorization()
                 }
