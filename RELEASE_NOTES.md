@@ -38,10 +38,10 @@ Create a `permissions.json` and generate files automatically:
 ### CLI Generator Tool
 
 ```bash
-swift run permission-plist-generator permissions.json --output-dir MyApp/
+swift run permission-plist-generator permissions.json --app-name MyApp --output-dir MyApp/
 ```
 
-Generates `Info.plist`, `.entitlements`, and `.xcconfig` — ready to drop into your Xcode project.
+Generates `MyApp-Info.plist`, `MyApp.entitlements`, and `MyApp.xcconfig` — ready to drop into your Xcode project.
 
 ### SPM Command Plugin
 
@@ -67,7 +67,7 @@ Permission.health(.readWrite).entitlements
 ### Added
 - `PermissionManifest` — declarative permission config with Info.plist, entitlements, and xcconfig generation
 - JSON configuration support (`permissions.json`) with permission names, variants, and usage descriptions
-- CLI tool `permission-plist-generator` for automated file generation
+- CLI tool `permission-plist-generator` with `--app-name` flag for host app file generation
 - SPM command plugin `GeneratePermissionPlist` for Xcode and CLI integration
 - `Permission.requiredCapability` — Xcode capability identifier per permission
 - `Permission.entitlements` — entitlements dictionary per permission

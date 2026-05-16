@@ -195,11 +195,13 @@ let missing = InfoPlistHelper.validateInfoPlist(for: [.camera, .microphone, .loc
 
 ## Auto-Generate Info.plist & Entitlements
 
-> **Never forget a privacy key or capability again.** Define your permissions once, generate everything Xcode needs automatically.
+> **Never forget a privacy key or capability again.** Define your permissions once, generate everything your host app's Xcode project needs automatically — Info.plist privacy keys, `.entitlements` capabilities, and build settings.
+>
+> These files are generated for **your app** (the one that depends on PermissionKit), not for the framework itself.
 
 ### 🔧 Using PermissionManifest in Code
 
-Define all your app's permissions in one place:
+In your host app, define all permissions in one place:
 
 ```swift
 import PermissionKit
@@ -230,7 +232,7 @@ print(manifest.report())
 
 ### 📄 Using JSON Configuration
 
-Create a `permissions.json` file in your project root:
+Create a `permissions.json` file in **your app's** project root:
 
 ```json
 {
@@ -258,30 +260,38 @@ Create a `permissions.json` file in your project root:
 
 ### ⚡ CLI Generator Tool
 
-Run the generator to produce all required files:
+Run the generator from your app's directory to produce all required files:
 
 ```bash
-swift run permission-plist-generator permissions.json --output-dir MyApp/
+swift run permission-plist-generator permissions.json --app-name MyApp --output-dir MyApp/
 ```
 
-This generates three files:
+This generates three files **for your host app**:
 
 | File | Contents |
 |---|---|
-| `PermissionKit-Info.plist` | Complete Info.plist with all `NS*UsageDescription` privacy keys |
-| `PermissionKit.entitlements` | Entitlements file with all required capabilities |
-| `PermissionKit.xcconfig` | Build settings pointing to the generated files |
+| `MyApp-Info.plist` | Complete Info.plist with all `NS*UsageDescription` privacy keys |
+| `MyApp.entitlements` | Entitlements file with all required capabilities |
+| `MyApp.xcconfig` | Build settings pointing to the generated files |
+
+Then add these files to your Xcode project:
+1. Drag the generated files into your app target in Xcode
+2. Set `MyApp-Info.plist` as the target's Info.plist in **Build Settings → Info.plist File**
+3. Set `MyApp.entitlements` in **Build Settings → Code Signing Entitlements**
+4. Or simply include `MyApp.xcconfig` in your build configuration — it sets both automatically
 
 ### 🔌 SPM Command Plugin
 
-Run directly from Swift Package Manager:
+Run directly from your app's package directory:
 
 ```bash
 swift package plugin generate-permission-plist
 swift package plugin generate-permission-plist --output-dir Sources/MyApp
 ```
 
-Or in Xcode: **right-click your target → GeneratePermissionPlist**.
+Or in Xcode: **right-click your app target → GeneratePermissionPlist**.
+
+The plugin reads `permissions.json` from your app's project root and generates files into the specified directory.
 
 ### 🌐 Bonjour Services (Local Network)
 
