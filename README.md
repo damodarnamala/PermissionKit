@@ -16,6 +16,7 @@ A unified, expressive, and developer-friendly permissions framework covering **a
 - **Async/await first** with Combine and AsyncStream bridges
 - **SwiftUI components** — gates, buttons, badges, flows, and sheets
 - **Combinators** — sequence, concurrent, and conditional chain patterns
+- **Auto-generate Info.plist & entitlements** — CLI tool and SPM plugin
 - **Testable by design** — built-in mocking infrastructure
 - **Zero dependencies** — pure Apple SDK, conditional imports per platform
 
@@ -176,11 +177,13 @@ Permission.camera.publisher
 Every permission includes rich metadata:
 
 ```swift
-Permission.camera.title           // "Camera"
-Permission.camera.description     // "Access the device camera..."
-Permission.camera.systemImageName // "camera.fill"
-Permission.camera.infoPlistKey    // "NSCameraUsageDescription"
-Permission.camera.platforms       // [.iOS, .macOS, .tvOS]
+Permission.camera.title              // "Camera"
+Permission.camera.description        // "Access the device camera..."
+Permission.camera.systemImageName    // "camera.fill"
+Permission.camera.infoPlistKey       // "NSCameraUsageDescription"
+Permission.camera.requiredCapability // "com.apple.security.device.camera"
+Permission.camera.entitlements       // ["com.apple.security.device.camera": true]
+Permission.camera.platforms          // [.iOS, .macOS, .tvOS]
 ```
 
 ### Info.plist Validation
@@ -188,6 +191,106 @@ Permission.camera.platforms       // [.iOS, .macOS, .tvOS]
 ```swift
 let missing = InfoPlistHelper.validateInfoPlist(for: [.camera, .microphone, .location(.whenInUse)])
 // Returns array of missing Info.plist keys
+```
+
+## Auto-Generate Info.plist & Entitlements
+
+PermissionKit can automatically generate your `Info.plist` privacy keys, `.entitlements` file, and Xcode capabilities from a single manifest — no more forgetting a `NS*UsageDescription` key.
+
+### Using PermissionManifest in Code
+
+Define all your app's permissions in one place:
+
+```swift
+import PermissionKit
+
+let manifest = PermissionManifest(permissions: [
+    PermissionManifest.entry(.camera, usage: "Take photos for your profile"),
+    PermissionManifest.entry(.microphone, usage: "Record voice messages"),
+    PermissionManifest.entry(.location(.whenInUse), usage: "Show nearby places on the map"),
+    PermissionManifest.entry(.notifications(.default), usage: "Send you order updates"),
+    PermissionManifest.entry(.health(.readWrite), usage: "Track your workouts"),
+])
+
+// Generate Info.plist XML with all required privacy keys
+let plistXML = manifest.generateInfoPlist()
+
+// Generate .entitlements plist with all required capabilities
+let entitlementsPlist = manifest.generateEntitlementsPlist()
+
+// Validate at runtime that your bundle isn't missing any keys
+let missing = manifest.validateBundle()
+if !missing.isEmpty {
+    print("Missing Info.plist keys: \(missing)")
+}
+
+// Print a human-readable report
+print(manifest.report())
+```
+
+### Using JSON Configuration
+
+Create a `permissions.json` file in your project root:
+
+```json
+{
+  "permissions": [
+    { "permission": "camera", "usage": "Take photos for your profile" },
+    { "permission": "microphone", "usage": "Record voice messages" },
+    { "permission": "location", "variant": "whenInUse", "usage": "Show nearby places" },
+    { "permission": "photos", "variant": "readWrite", "usage": "Save edited images" },
+    { "permission": "notifications", "usage": "Send you order updates" },
+    { "permission": "health", "variant": "readWrite", "usage": "Track your workouts" },
+    { "permission": "biometrics", "variant": "faceID", "usage": "Secure app login" }
+  ]
+}
+```
+
+**Supported variants:**
+
+| Permission | Variants |
+|---|---|
+| `location` | `whenInUse` (default), `always`, `precise` |
+| `photos` | `readWrite` (default), `addOnly`, `limited` |
+| `calendar` | `fullAccess` (default), `read`, `write` |
+| `health` | `readWrite` (default), `read`, `write` |
+| `biometrics` | `any` (default), `faceID`, `touchID` |
+
+### CLI Generator Tool
+
+Run the generator to produce all required files:
+
+```bash
+swift run permission-plist-generator permissions.json --output-dir MyApp/
+```
+
+This generates three files:
+
+| File | Contents |
+|---|---|
+| `PermissionKit-Info.plist` | Complete Info.plist with all `NS*UsageDescription` privacy keys |
+| `PermissionKit.entitlements` | Entitlements file with all required capabilities |
+| `PermissionKit.xcconfig` | Build settings pointing to the generated files |
+
+### SPM Command Plugin
+
+Run directly from Swift Package Manager:
+
+```bash
+swift package plugin generate-permission-plist
+swift package plugin generate-permission-plist --output-dir Sources/MyApp
+```
+
+Or in Xcode: **right-click your target → GeneratePermissionPlist**.
+
+### Bonjour Services (Local Network)
+
+If your manifest includes `.localNetwork`, generate the `NSBonjourServices` array:
+
+```swift
+if let bonjour = manifest.generateBonjourServices(serviceTypes: ["_myapp._tcp", "_myapp._udp"]) {
+    print(bonjour) // XML fragment for Info.plist
+}
 ```
 
 ## Testing

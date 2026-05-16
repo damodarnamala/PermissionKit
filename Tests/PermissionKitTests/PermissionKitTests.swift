@@ -413,3 +413,174 @@ struct IntegrationTests {
         #expect(grantedCalled == true)
     }
 }
+
+// MARK: - Entitlements & Capabilities Tests
+
+@Suite("Entitlements Metadata Tests")
+struct EntitlementsMetadataTests {
+
+    @Test("Camera has correct capability")
+    func cameraCapability() {
+        #expect(Permission.camera.requiredCapability == "com.apple.security.device.camera")
+    }
+
+    @Test("HealthKit permissions have entitlements")
+    func healthEntitlements() {
+        let entitlements = Permission.health(.readWrite).entitlements
+        #expect(entitlements != nil)
+        #expect(entitlements?["com.apple.developer.healthkit"] as? Bool == true)
+    }
+
+    @Test("Notifications have aps-environment entitlement")
+    func notificationsEntitlements() {
+        let entitlements = Permission.notifications(.default).entitlements
+        #expect(entitlements?["com.apple.developer.aps-environment"] as? String == "development")
+    }
+
+    @Test("NFC has reader session format entitlement")
+    func nfcEntitlements() {
+        let entitlements = Permission.nfc.entitlements
+        #expect(entitlements != nil)
+        let formats = entitlements?["com.apple.developer.nfc.readersession.formats"] as? [String]
+        #expect(formats?.contains("NDEF") == true)
+    }
+
+    @Test("Biometrics has no capability requirement")
+    func biometricsNoCapability() {
+        #expect(Permission.biometrics(.faceID).requiredCapability == nil)
+    }
+
+    @Test("Siri has correct entitlement")
+    func siriEntitlement() {
+        let entitlements = Permission.siri.entitlements
+        #expect(entitlements?["com.apple.developer.siri"] as? Bool == true)
+    }
+}
+
+// MARK: - PermissionManifest Tests
+
+@Suite("PermissionManifest Tests")
+struct PermissionManifestTests {
+
+    @Test("Manifest generates Info.plist entries")
+    func generatesPlistEntries() {
+        let manifest = PermissionManifest(permissions: [
+            PermissionManifest.entry(.camera, usage: "Take photos"),
+            PermissionManifest.entry(.microphone, usage: "Record audio"),
+        ])
+
+        let plist = manifest.generateInfoPlistEntries()
+        #expect(plist.contains("NSCameraUsageDescription"))
+        #expect(plist.contains("Take photos"))
+        #expect(plist.contains("NSMicrophoneUsageDescription"))
+        #expect(plist.contains("Record audio"))
+    }
+
+    @Test("Manifest deduplicates Info.plist keys")
+    func deduplicatesPlistKeys() {
+        let manifest = PermissionManifest(permissions: [
+            PermissionManifest.entry(.camera, usage: "Take photos"),
+            PermissionManifest.entry(.camera, usage: "Also take photos"),
+        ])
+
+        let plist = manifest.generateInfoPlistEntries()
+        let count = plist.components(separatedBy: "NSCameraUsageDescription").count - 1
+        #expect(count == 1)
+    }
+
+    @Test("Manifest generates entitlements")
+    func generatesEntitlements() {
+        let manifest = PermissionManifest(permissions: [
+            PermissionManifest.entry(.notifications(.default), usage: "Send updates"),
+            PermissionManifest.entry(.health(.readWrite), usage: "Track workouts"),
+        ])
+
+        let entitlements = manifest.generateEntitlements()
+        #expect(entitlements["com.apple.developer.aps-environment"] as? String == "development")
+        #expect(entitlements["com.apple.developer.healthkit"] as? Bool == true)
+    }
+
+    @Test("Manifest generates entitlements plist XML")
+    func generatesEntitlementsPlistXML() {
+        let manifest = PermissionManifest(permissions: [
+            PermissionManifest.entry(.siri, usage: "Use Siri"),
+        ])
+
+        let xml = manifest.generateEntitlementsPlist()
+        #expect(xml.contains("com.apple.developer.siri"))
+        #expect(xml.contains("<true/>"))
+        #expect(xml.contains("<?xml version"))
+    }
+
+    @Test("Manifest generates full Info.plist XML")
+    func generatesFullInfoPlist() {
+        let manifest = PermissionManifest(permissions: [
+            PermissionManifest.entry(.camera, usage: "Take photos"),
+        ])
+
+        let xml = manifest.generateInfoPlist(bundleIdentifier: "com.test.app")
+        #expect(xml.contains("com.test.app"))
+        #expect(xml.contains("NSCameraUsageDescription"))
+        #expect(xml.contains("Take photos"))
+    }
+
+    @Test("Manifest report includes all entries")
+    func reportIncludesEntries() {
+        let manifest = PermissionManifest(permissions: [
+            PermissionManifest.entry(.camera, usage: "Take photos"),
+            PermissionManifest.entry(.location(.whenInUse), usage: "Show nearby"),
+        ])
+
+        let report = manifest.report()
+        #expect(report.contains("Camera"))
+        #expect(report.contains("Take photos"))
+        #expect(report.contains("Location"))
+        #expect(report.contains("Show nearby"))
+    }
+
+    @Test("Manifest parses from JSON")
+    func parsesJSON() throws {
+        let json = """
+        {
+          "permissions": [
+            { "permission": "camera", "usage": "Take photos" },
+            { "permission": "location", "variant": "always", "usage": "Background tracking" },
+            { "permission": "health", "variant": "read", "usage": "Read health data" }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let manifest = try PermissionManifest(jsonData: json)
+        #expect(manifest.entries.count == 3)
+        #expect(manifest.entries[0].permission == .camera)
+        #expect(manifest.entries[1].permission == .location(.always))
+        #expect(manifest.entries[2].permission == .health(.read))
+    }
+
+    @Test("Manifest Bonjour services only generated when localNetwork is present")
+    func bonjourServicesRequiresLocalNetwork() {
+        let withoutLN = PermissionManifest(permissions: [
+            PermissionManifest.entry(.camera, usage: "Take photos"),
+        ])
+        #expect(withoutLN.generateBonjourServices(serviceTypes: ["_test._tcp"]) == nil)
+
+        let withLN = PermissionManifest(permissions: [
+            PermissionManifest.entry(.localNetwork, usage: "Find devices"),
+        ])
+        let xml = withLN.generateBonjourServices(serviceTypes: ["_test._tcp"])
+        #expect(xml?.contains("NSBonjourServices") == true)
+        #expect(xml?.contains("_test._tcp") == true)
+    }
+
+    @Test("Manifest escapes XML special characters")
+    func escapesXML() {
+        let manifest = PermissionManifest(permissions: [
+            PermissionManifest.entry(.camera, usage: "Photos & videos <with> \"special\" chars"),
+        ])
+
+        let plist = manifest.generateInfoPlistEntries()
+        #expect(plist.contains("&amp;"))
+        #expect(plist.contains("&lt;with&gt;"))
+        #expect(plist.contains("&quot;special&quot;"))
+    }
+}

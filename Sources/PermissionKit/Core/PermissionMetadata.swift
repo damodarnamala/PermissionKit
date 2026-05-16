@@ -164,6 +164,70 @@ extension Permission {
     }
     #endif
 
+    /// The Xcode capability identifier required for this permission, if any.
+    /// Use this to determine which capabilities to enable in your target's
+    /// "Signing & Capabilities" tab or in the `.entitlements` file.
+    public var requiredCapability: String? {
+        switch self {
+        case .location: return "com.apple.security.personal-information.location"
+        case .camera: return "com.apple.security.device.camera"
+        case .microphone: return "com.apple.security.device.audio-input"
+        case .photos: return "com.apple.security.personal-information.photos-library"
+        case .mediaLibrary: return "com.apple.security.assets.music.read-write"
+        case .contacts: return "com.apple.security.personal-information.addressbook"
+        case .calendar, .reminders: return "com.apple.security.personal-information.calendars"
+        case .notifications, .criticalAlerts: return "com.apple.developer.aps-environment"
+        case .bluetooth: return "com.apple.security.device.bluetooth"
+        case .localNetwork: return "com.apple.developer.networking.multicast"
+        case .nearbyInteraction: return "com.apple.developer.nearby-interaction"
+        case .biometrics: return nil // No entitlement needed, uses LocalAuthentication
+        case .tracking: return nil // No entitlement needed
+        case .siri: return "com.apple.developer.siri"
+        case .speechRecognition: return nil // No entitlement needed
+        case .health: return "com.apple.developer.healthkit"
+        case .motion: return nil // No entitlement needed
+        case .homeKit: return "com.apple.developer.homekit"
+        case .nfc: return "com.apple.developer.nfc.readersession.formats"
+        case .screenRecording: return nil // macOS TCC
+        case .fullDiskAccess: return "com.apple.security.files.all"
+        case .accessibility: return "com.apple.security.accessibility"
+        case .inputMonitoring: return "com.apple.security.device.usb"
+        case .automation: return "com.apple.security.automation.apple-events"
+        case .workoutExtension: return "com.apple.developer.healthkit"
+        case .mindfulnessSession: return "com.apple.developer.healthkit"
+        }
+    }
+
+    /// The entitlements dictionary entries required for this permission, if any.
+    /// Returns key-value pairs for generating `.entitlements` files.
+    public var entitlements: [String: Any]? {
+        switch self {
+        case .health(.read), .health(.readWrite), .health(.write),
+             .workoutExtension, .mindfulnessSession:
+            return [
+                "com.apple.developer.healthkit": true,
+                "com.apple.developer.healthkit.access": ["health-records"]
+            ]
+        case .notifications, .criticalAlerts:
+            return ["com.apple.developer.aps-environment": "development"]
+        case .nfc:
+            return [
+                "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"]
+            ]
+        case .siri:
+            return ["com.apple.developer.siri": true]
+        case .homeKit:
+            return ["com.apple.developer.homekit": true]
+        case .localNetwork:
+            return ["com.apple.developer.networking.multicast": true]
+        case .nearbyInteraction:
+            return ["com.apple.developer.nearby-interaction": true]
+        default:
+            guard let cap = requiredCapability else { return nil }
+            return [cap: true]
+        }
+    }
+
     /// The Info.plist key required for this permission, if any.
     public var infoPlistKey: String? {
         switch self {

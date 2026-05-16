@@ -1,0 +1,9 @@
+{
+  "permissions": [
+    { "permission": "camera", "usage": "Take photos for your profile" },
+    { "permission": "microphone", "usage": "Record voice messages" },
+    { "permission": "location", "variant": "whenInUse", "usage": "Show nearby places on the map" },
+    { "permission": "photos", "variant": "readWrite", "usage": "Save and access your photos" },
+    { "permission": "notifications", "usage": "Send you important updates" }
+  ]
+}

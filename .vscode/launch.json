@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:PermissionKit}",
+            "name": "Debug permission-plist-generator",
+            "target": "permission-plist-generator",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug permission-plist-generator"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:PermissionKit}",
+            "name": "Release permission-plist-generator",
+            "target": "permission-plist-generator",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release permission-plist-generator"
+        }
+    ]
+}

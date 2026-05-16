@@ -16,11 +16,36 @@ let package = Package(
             name: "PermissionKit",
             targets: ["PermissionKit"]
         ),
+        .plugin(
+            name: "GeneratePermissionPlist",
+            targets: ["GeneratePermissionPlist"]
+        ),
     ],
     targets: [
         .target(
             name: "PermissionKit",
             path: "Sources/PermissionKit"
+        ),
+        .executableTarget(
+            name: "permission-plist-generator",
+            dependencies: ["PermissionKit"],
+            path: "Sources/PermissionPlistGenerator"
+        ),
+        .plugin(
+            name: "GeneratePermissionPlist",
+            capability: .command(
+                intent: .custom(
+                    verb: "generate-permission-plist",
+                    description: "Generate Info.plist entries and .entitlements from permissions.json"
+                ),
+                permissions: [
+                    .writeToPackageDirectory(reason: "Write generated Info.plist and entitlements files")
+                ]
+            ),
+            dependencies: [
+                .target(name: "permission-plist-generator")
+            ],
+            path: "Plugins/GeneratePermissionPlist"
         ),
         .testTarget(
             name: "PermissionKitTests",
