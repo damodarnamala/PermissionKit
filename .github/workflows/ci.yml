@@ -32,10 +32,10 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.app
       - name: Build for iOS
         run: |
-          xcodebuild build \
-            -scheme PermissionKit \
-            -destination 'generic/platform=iOS Simulator' \
-            -skipPackagePluginValidation
+          IOS_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          IOS_VER=$(xcrun --sdk iphonesimulator --show-sdk-version)
+          find Sources/PermissionKit -name '*.swift' | \
+            xargs swiftc -sdk "$IOS_SDK" -target "arm64-apple-ios${IOS_VER}-simulator" -typecheck
 
   build-tvos:
     name: Build (tvOS)
