@@ -31,7 +31,7 @@ final class MotionHandler: PermissionHandler, @unchecked Sendable {
             manager.queryActivityStarting(from: now.addingTimeInterval(-86400), to: now, to: .main) { [weak self] _, error in
                 manager.stopActivityUpdates()
                 let newStatus: PermissionStatus
-                if let error = error as? CMError, error.code == .motionActivityNotAuthorized {
+                if let error = error as NSError?, error.domain == CMErrorDomain, error.code == Int(CMErrorMotionActivityNotAuthorized.rawValue) {
                     newStatus = .denied
                 } else if error != nil {
                     newStatus = .denied
