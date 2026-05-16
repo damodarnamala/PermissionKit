@@ -5,7 +5,7 @@ build:
 
 install: build
 	install -d "$(PREFIX)/bin/"
-	install ".build/release/permissionkit" "$(PREFIX)/bin/permissionkit"
+	install ".build/release/PermissionKitCLI" "$(PREFIX)/bin/permissionkit"
 
 uninstall:
 	rm -f "$(PREFIX)/bin/permissionkit"

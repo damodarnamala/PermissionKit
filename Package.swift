@@ -17,7 +17,7 @@ let package = Package(
             targets: ["PermissionKit"]
         ),
         .executable(
-            name: "permissionkit",
+            name: "PermissionKitCLI",
             targets: ["PermissionKitCLI"]
         ),
         .plugin(

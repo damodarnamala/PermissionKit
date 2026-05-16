@@ -39,6 +39,26 @@
             "target": "permissionkit",
             "configuration": "release",
             "preLaunchTask": "swift: Build Release permissionkit"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:PermissionKit}",
+            "name": "Debug PermissionKitCLI",
+            "target": "PermissionKitCLI",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug PermissionKitCLI"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:PermissionKit}",
+            "name": "Release PermissionKitCLI",
+            "target": "PermissionKitCLI",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release PermissionKitCLI"
         }
     ]
 }
